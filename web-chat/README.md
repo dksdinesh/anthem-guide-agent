@@ -6,7 +6,8 @@ A web-based conversational interface for the Anthem Guide agent, allowing users 
 
 - 🎨 Modern, responsive chat interface
 - 💬 Real-time conversational AI interaction
-- 🏥 Specialized in Elevance Health web guide development
+- � Live website data fetching from Elevance Health
+- �🏥 Specialized in Elevance Health web guide development
 - 🔒 Healthcare compliance aware
 - 📱 Mobile-friendly design
 

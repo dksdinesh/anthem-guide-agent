@@ -1,14 +1,24 @@
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*', // Allow all origins for development
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(__dirname)); // Serve static files from current directory
+
+// Serve index.html for root route
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
 
 // Serve static files
 app.use(express.static(__dirname));
@@ -73,17 +83,22 @@ const anthemGuideKnowledge = {
 };
 
 // Enhanced response system with real Elevance Health information
-function generateResponse(userMessage) {
+function generateResponse(userMessage, freshData = null) {
     const message = userMessage.toLowerCase();
+    
+    // If we have fresh data from the website, use it
+    if (freshData) {
+        return `Here's the latest information from Elevance Health (fetched at ${freshData.timestamp}):\n\nTitle: ${freshData.title}\n\nDescription: ${freshData.description}\n\nFor more detailed information, visit ${anthemGuideKnowledge.knowledgeBase}`;
+    }
     
     // Greeting responses
     if (message.includes('hello') || message.includes('hi') || message.includes('hey')) {
-        return `Hello! I'm the Anthem Guide agent, specialized in Elevance Health web guide development. I can help you with information about ${anthemGuideKnowledge.companyInfo.name} and their mission to "${anthemGuideKnowledge.companyInfo.purpose}". How can I assist you today?`;
+        return `Hello! I'm the Anthem Guide agent, specialized in Elevance Health web guide development. I can help you with information about ${anthemGuideKnowledge.companyInfo.name} and their mission to "${anthemGuideKnowledge.companyInfo.purpose}". I can also fetch real-time information from their website. How can I assist you today?`;
     }
     
     // Help responses
     if (message.includes('help') || message.includes('what can you do')) {
-        return `I can help you with:\n• ${anthemGuideKnowledge.expertise.join('\n• ')}\n\nMy capabilities include:\n• ${anthemGuideKnowledge.capabilities.join('\n• ')}\n\nI have access to real information about Elevance Health including their services, programs, and approach to whole health.`;
+        return `I can help you with:\n• ${anthemGuideKnowledge.expertise.join('\n• ')}\n\nMy capabilities include:\n• ${anthemGuideKnowledge.capabilities.join('\n• ')}\n\nI have access to real information about Elevance Health including their services, programs, and approach to whole health. I can also fetch real-time data from their website when you ask for "latest" or "current" information.`;
     }
     
     // Contact information
@@ -93,7 +108,7 @@ function generateResponse(userMessage) {
     
     // Company information
     if (message.includes('elevance') || message.includes('company') || message.includes('about') || message.includes('who')) {
-        return `${anthemGuideKnowledge.companyInfo.name} is ${anthemGuideKnowledge.companyInfo.description}. Their bold purpose is "${anthemGuideKnowledge.companyInfo.purpose}" and they focus on "${anthemGuideKnowledge.companyInfo.mission}".\n\nTheir approach: ${anthemGuideKnowledge.companyInfo.approach}.`;
+        return `${anthemGuideKnowledge.companyInfo.name} is ${anthemGuideKnowledge.companyInfo.description}. Their bold purpose is "${anthemGuideKnowledge.companyInfo.purpose}" and they focus on "${anthemGuideKnowledge.companyInfo.mission}".\n\nTheir approach: ${anthemGuideKnowledge.companyInfo.approach}.\n\nFor the most current information, ask me to fetch the latest data from their website.`;
     }
     
     // Services information
@@ -128,7 +143,7 @@ function generateResponse(userMessage) {
     
     // Website information
     if (message.includes('website') || message.includes('resource') || message.includes('reference') || message.includes('link')) {
-        return `The official Elevance Health website is available at: ${anthemGuideKnowledge.knowledgeBase}\n\nThere you can find detailed information about their services, research, stories, and approach to whole health.`;
+        return `The official Elevance Health website is available at: ${anthemGuideKnowledge.knowledgeBase}\n\nThere you can find detailed information about their services, research, stories, and approach to whole health.\n\nI can also fetch real-time content from their website if you need the most current information.`;
     }
     
     // Web guide specific
@@ -147,11 +162,32 @@ function generateResponse(userMessage) {
     }
     
     // Default response with company context
-    return `I'm here to help with Elevance Health web guide development and can provide information about ${anthemGuideKnowledge.companyInfo.name} and their services. I can assist with web guide development, content management, technical implementation, user experience optimization, and healthcare compliance. Would you like to know more about their services, approach to health, or specific web guide development assistance?`;
+    return `I'm here to help with Elevance Health web guide development and can provide information about ${anthemGuideKnowledge.companyInfo.name} and their services. I can assist with web guide development, content management, technical implementation, user experience optimization, and healthcare compliance. I can also fetch real-time information from their website - just ask for "latest" or "current" information. Would you like to know more about their services, approach to health, or specific web guide development assistance?`;
+}
+
+// Function to fetch real-time data from Elevance Health website
+async function fetchElevanceHealthData() {
+    try {
+        const response = await fetch('https://www.elevancehealth.com/');
+        const html = await response.text();
+        
+        // Extract relevant information (simplified for demo)
+        const titleMatch = html.match(/<title>(.*?)<\/title>/);
+        const descriptionMatch = html.match(/<meta name="description" content="(.*?)"/);
+        
+        return {
+            title: titleMatch ? titleMatch[1] : '',
+            description: descriptionMatch ? descriptionMatch[1] : '',
+            timestamp: new Date().toISOString()
+        };
+    } catch (error) {
+        console.error('Error fetching Elevance Health data:', error);
+        return null;
+    }
 }
 
 // Chat endpoint
-app.post('/api/chat', (req, res) => {
+app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
         
@@ -159,8 +195,16 @@ app.post('/api/chat', (req, res) => {
             return res.status(400).json({ error: 'Message is required' });
         }
         
+        // Check if we need fresh data from the website
+        const messageLower = message.toLowerCase();
+        let freshData = null;
+        
+        if (messageLower.includes('latest') || messageLower.includes('current') || messageLower.includes('recent') || messageLower.includes('update')) {
+            freshData = await fetchElevanceHealthData();
+        }
+        
         // Generate response (replace with actual AI service call)
-        const response = generateResponse(message);
+        const response = generateResponse(message, freshData);
         
         res.json({ response });
     } catch (error) {

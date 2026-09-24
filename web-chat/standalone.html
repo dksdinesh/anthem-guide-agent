@@ -267,18 +267,64 @@
             ]
         };
 
-        // Enhanced response system with real Elevance Health information
-        function generateResponse(userMessage) {
+        // Function to fetch real-time data from Elevance Health website
+        async function fetchElevanceHealthData() {
+            try {
+                // Note: This may fail due to CORS when running from file:// protocol
+                // For full functionality, run the backend server
+                const response = await fetch('https://www.elevancehealth.com/');
+                const html = await response.text();
+                
+                // Extract relevant information from the website
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Extract key information
+                const title = tempDiv.querySelector('h1')?.textContent || '';
+                const description = tempDiv.querySelector('meta[name="description"]')?.content || '';
+                const mainContent = tempDiv.querySelector('main')?.textContent || '';
+                
+                return {
+                    title,
+                    description,
+                    mainContent: mainContent.substring(0, 500) // Limit content length
+                };
+            } catch (error) {
+                console.error('Error fetching Elevance Health data:', error);
+                // Return helpful error message for CORS issues
+                if (error.message.includes('CORS') || error.message.includes('NetworkError')) {
+                    return {
+                        error: 'CORS_ERROR',
+                        message: 'Cannot fetch live data due to browser security restrictions. Please run the backend server for full functionality.'
+                    };
+                }
+                return null;
+            }
+        }
+
+        // Enhanced response system with real-time website fetching
+        async function generateResponse(userMessage) {
             const message = userMessage.toLowerCase();
+            
+            // Check if we need fresh data from the website
+            if (message.includes('latest') || message.includes('current') || message.includes('recent') || message.includes('update')) {
+                const freshData = await fetchElevanceHealthData();
+                if (freshData) {
+                    if (freshData.error === 'CORS_ERROR') {
+                        return `I cannot fetch live data from the Elevance Health website due to browser security restrictions (CORS).\n\nTo enable live website fetching, please run the backend server:\n1. Install Node.js\n2. Navigate to the web-chat directory\n3. Run 'npm install'\n4. Run 'npm start'\n5. Open http://localhost:3000\n\nCurrently, I can provide pre-loaded information about Elevance Health.`;
+                    }
+                    return `Here's the latest information from Elevance Health:\n\n${freshData.description}\n\nKey content: ${freshData.mainContent}`;
+                }
+            }
             
             // Greeting responses
             if (message.includes('hello') || message.includes('hi') || message.includes('hey')) {
-                return `Hello! I'm the Anthem Guide agent, specialized in Elevance Health web guide development. I can help you with information about ${anthemGuideKnowledge.companyInfo.name} and their mission to "${anthemGuideKnowledge.companyInfo.purpose}". How can I assist you today?`;
+                return `Hello! I'm the Anthem Guide agent, specialized in Elevance Health web guide development. I can help you with information about ${anthemGuideKnowledge.companyInfo.name} and their mission to "${anthemGuideKnowledge.companyInfo.purpose}".\n\nNote: I'm currently running in standalone mode. For full functionality including live website fetching from Elevance Health, please run the backend server with Node.js. How can I assist you today?`;
             }
             
             // Help responses
             if (message.includes('help') || message.includes('what can you do')) {
-                return `I can help you with:\n• ${anthemGuideKnowledge.expertise.join('\n• ')}\n\nMy capabilities include:\n• ${anthemGuideKnowledge.capabilities.join('\n• ')}\n\nI have access to real information about Elevance Health including their services, programs, and approach to whole health.`;
+                return `I can help you with:\n• ${anthemGuideKnowledge.expertise.join('\n• ')}\n\nMy capabilities include:\n• ${anthemGuideKnowledge.capabilities.join('\n• ')}\n\nI have access to real information about Elevance Health including their services, programs, and approach to whole health. I can also fetch real-time data from their website when you ask for "latest" or "current" information.`;
             }
             
             // Contact information
@@ -288,7 +334,7 @@
             
             // Company information
             if (message.includes('elevance') || message.includes('company') || message.includes('about') || message.includes('who')) {
-                return `${anthemGuideKnowledge.companyInfo.name} is ${anthemGuideKnowledge.companyInfo.description}. Their bold purpose is "${anthemGuideKnowledge.companyInfo.purpose}" and they focus on "${anthemGuideKnowledge.companyInfo.mission}".\n\nTheir approach: ${anthemGuideKnowledge.companyInfo.approach}.`;
+                return `${anthemGuideKnowledge.companyInfo.name} is ${anthemGuideKnowledge.companyInfo.description}. Their bold purpose is "${anthemGuideKnowledge.companyInfo.purpose}" and they focus on "${anthemGuideKnowledge.companyInfo.mission}".\n\nTheir approach: ${anthemGuideKnowledge.companyInfo.approach}.\n\nFor the most current information, ask me to fetch the latest data from their website.`;
             }
             
             // Services information
@@ -323,7 +369,7 @@
             
             // Website information
             if (message.includes('website') || message.includes('resource') || message.includes('reference') || message.includes('link')) {
-                return `The official Elevance Health website is available at: ${anthemGuideKnowledge.knowledgeBase}\n\nThere you can find detailed information about their services, research, stories, and approach to whole health.`;
+                return `The official Elevance Health website is available at: ${anthemGuideKnowledge.knowledgeBase}\n\nThere you can find detailed information about their services, research, stories, and approach to whole health.\n\nI can also fetch real-time content from their website if you need the most current information.`;
             }
             
             // Web guide specific
@@ -342,7 +388,7 @@
             }
             
             // Default response with company context
-            return `I'm here to help with Elevance Health web guide development and can provide information about ${anthemGuideKnowledge.companyInfo.name} and their services. I can assist with web guide development, content management, technical implementation, user experience optimization, and healthcare compliance. Would you like to know more about their services, approach to health, or specific web guide development assistance?`;
+            return `I'm here to help with Elevance Health web guide development and can provide information about ${anthemGuideKnowledge.companyInfo.name} and their services. I can assist with web guide development, content management, technical implementation, user experience optimization, and healthcare compliance.\n\nNote: I'm currently running in standalone mode. For full functionality including live website fetching from Elevance Health, please run the backend server with Node.js. In standalone mode, I provide pre-loaded information. Would you like to know more about their services, approach to health, or specific web guide development assistance?`;
         }
 
         // Add message to chat
@@ -388,7 +434,7 @@
         }
 
         // Send message
-        function sendMessage() {
+        async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
             
@@ -403,20 +449,25 @@
             // Show typing indicator
             showTypingIndicator();
             
-            // Simulate AI response delay
-            setTimeout(() => {
+            try {
+                // Generate and add bot response (now async for website fetching)
+                const response = await generateResponse(message);
+                
                 // Remove typing indicator
                 removeTypingIndicator();
                 
-                // Generate and add bot response
-                const response = generateResponse(message);
+                // Add bot response
                 addMessage(response);
-                
+            } catch (error) {
+                console.error('Error generating response:', error);
+                removeTypingIndicator();
+                addMessage('Sorry, I encountered an error processing your request. Please try again.');
+            } finally {
                 // Re-enable input
                 userInput.disabled = false;
                 sendButton.disabled = false;
                 userInput.focus();
-            }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
+            }
         }
 
         // Event listeners

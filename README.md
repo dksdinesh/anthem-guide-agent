@@ -58,6 +58,31 @@ For any inquiries: dgvc.dinesh@gmail.com
 - **Knowledge Base**: https://www.elevancehealth.com/
 - **Devin CLI Documentation**: https://devin.ai/docs
 
+## Web Chat Interface
+
+A web-based conversational interface is also available for the Anthem Guide agent, allowing users to interact through a modern chat interface.
+
+### Quick Start
+
+1. Navigate to the web-chat directory:
+   ```bash
+   cd web-chat
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the server:
+   ```bash
+   npm start
+   ```
+
+4. Open your browser to `http://localhost:3000`
+
+For detailed instructions, see the [web-chat README](web-chat/README.md).
+
 ## License
 
 This agent configuration is provided as-is for use with the Devin CLI.
